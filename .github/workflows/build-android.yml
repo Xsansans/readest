@@ -10,19 +10,20 @@ jobs:
     runs-on: ubuntu-latest 
 
     steps:
-      # 👇 核心修改：加上了 with 和 submodules: recursive
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # 👇 核心修改 1：升级到 v6
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
+      # 👇 核心修改 2：将 Node.js 版本从 20 升级到 22
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install Rust stable
