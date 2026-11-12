@@ -465,6 +465,26 @@ const compareTitles = (a: string, b: string, uiLanguage: string): number => {
 const getTitleSortValue = (book: Book): string =>
   formatTitle(book.title).replace(/^\s*(?:a|an|the)\s+(?=\S)/i, '');
 
+// Only strip a real ebook/audio extension: a title like "Catch 22.5" must keep
+// its ".5" instead of being truncated to "Catch 22".
+const BOOK_FILE_EXT_RE =
+  /\.(epub|pdf|mobi|azw3?|cbz|fb2|fbz|txt|md|markdown|html?|docx|rtf|zip|mp3|m4a|m4b|opus|flac|ogg)$/i;
+
+/**
+ * The name the book was imported under, without its extension: the "original
+ * filename" key. Falls back to the metadata title for books imported before
+ * `originalFilename` was persisted (or for remote/OPDS books, which have no
+ * local file name at all).
+ */
+export const getBookFilename = (book: Book): string => {
+  const filename = book.originalFilename?.trim();
+  if (filename) {
+    const stem = filename.replace(BOOK_FILE_EXT_RE, '').trim();
+    if (stem) return stem;
+  }
+  return formatTitle(book.title);
+};
+
 const compareBookByKey = (
   a: Book,
   b: Book,
@@ -478,6 +498,9 @@ const compareBookByKey = (
       const bTitle = getTitleSortValue(b);
       return compareTitles(aTitle, bTitle, uiLanguage);
     }
+    case LibrarySortByType.Filename:
+      // Natural order so "002-" sorts before "010-" and before "10-".
+      return compareTitles(getBookFilename(a), getBookFilename(b), uiLanguage);
     case LibrarySortByType.Author: {
       const aAuthors = formatAuthors(a.author, a?.primaryLanguage || 'en', true);
       const bAuthors = formatAuthors(b.author, b?.primaryLanguage || 'en', true);
@@ -901,6 +924,9 @@ export const getBookSortValue = (book: Book, sortBy: LibrarySortByType): number 
     case LibrarySortByType.Title:
       return getTitleSortValue(book);
 
+    case LibrarySortByType.Filename:
+      return getBookFilename(book);
+
     case LibrarySortByType.Author:
       return formatAuthors(book.author, book?.primaryLanguage || 'en', true);
 
@@ -950,6 +976,7 @@ export const getGroupSortValue = (
 
   if (books.length === 0) {
     return sortBy === LibrarySortByType.Title ||
+      sortBy === LibrarySortByType.Filename ||
       sortBy === LibrarySortByType.Series ||
       sortBy === LibrarySortByType.Author ||
       sortBy === LibrarySortByType.Format
@@ -959,6 +986,7 @@ export const getGroupSortValue = (
 
   switch (sortBy) {
     case LibrarySortByType.Title:
+    case LibrarySortByType.Filename:
     case LibrarySortByType.Series:
     case LibrarySortByType.Format:
       return name;
@@ -1024,7 +1052,7 @@ export const compareSortValues = (
 ): number => {
   // String comparison for text-based sorts
   if (typeof aValue === 'string' && typeof bValue === 'string') {
-    return sortBy === LibrarySortByType.Title
+    return sortBy === LibrarySortByType.Title || sortBy === LibrarySortByType.Filename
       ? compareTitles(aValue, bValue, uiLanguage)
       : aValue.localeCompare(bValue, uiLanguage || navigator.language);
   }

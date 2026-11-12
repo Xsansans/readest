@@ -52,6 +52,7 @@ export const resolveBookshelfLayout = (
   shelf.layout === 'carousel' ? 'carousel' : viewMode === 'list' ? 'list' : 'grid';
 export const BOOKSHELF_SORT_LABELS: Record<LibrarySortByType, string> = {
   title: _('Title'),
+  filename: _('Filename'),
   author: _('Author'),
   updated: _('Date Read'),
   created: _('Date Added'),

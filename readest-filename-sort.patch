@@ -1,0 +1,171 @@
+--- a/apps/readest-app/public/locales/zh-CN/translation.json
++++ b/apps/readest-app/public/locales/zh-CN/translation.json
+@@ -232,6 +232,7 @@
+   "Changelog": "更新日志",
+   "Software Update": "软件更新",
+   "Title": "书名",
++  "Filename": "文件名",
+   "Date Read": "阅读日期",
+   "Date Added": "添加日期",
+   "Format": "格式",
+--- a/apps/readest-app/public/locales/zh-TW/translation.json
++++ b/apps/readest-app/public/locales/zh-TW/translation.json
+@@ -231,6 +231,7 @@
+   "Changelog": "更新日誌：",
+   "Software Update": "軟體更新",
+   "Title": "書名",
++  "Filename": "檔案名稱",
+   "Date Read": "閱讀日期",
+   "Date Added": "添加日期",
+   "Format": "格式",
+--- a/apps/readest-app/src/__tests__/utils/library-utils.test.ts
++++ b/apps/readest-app/src/__tests__/utils/library-utils.test.ts
+@@ -8,6 +8,7 @@
+   getGroupSortValue,
+   compareSortValues,
+   createBookSorter,
++  getBookFilename,
+   ensureLibrarySortByType,
+   ensureLibrarySecondarySortByType,
+   ensureLibraryGroupByType,
+@@ -2025,3 +2026,33 @@
+     expect(canRemoveFromDeviceOnly(createMockBook({ uploadedAt: 100 }))).toBe(false);
+   });
+ });
++
++describe('filename sort', () => {
++  it('strips the extension and keeps the numeric prefix', () => {
++    expect(getBookFilename(createMockBook({ originalFilename: '001-黑暗时代·上.epub' }))).toBe(
++      '001-黑暗时代·上',
++    );
++  });
++
++  it('falls back to the title when no original filename was persisted', () => {
++    expect(getBookFilename(createMockBook({ title: 'Dark Age' }))).toBe('Dark Age');
++  });
++
++  it('sorts books by filename in natural order', () => {
++    const books = [
++      createMockBook({ title: 'B', originalFilename: '010-风暴瞭望.epub' }),
++      createMockBook({ title: 'A', originalFilename: '002-黑暗时代·下.epub' }),
++      createMockBook({ title: 'C', originalFilename: '009-怒号光明.epub' }),
++      createMockBook({ title: 'D', originalFilename: '001-黑暗时代·上.epub' }),
++    ];
++    const sorted = [...books]
++      .sort(createBookSorter(LibrarySortByType.Filename, 'en', 'none', true))
++      .map((b) => getBookFilename(b));
++    expect(sorted).toEqual([
++      '001-黑暗时代·上',
++      '002-黑暗时代·下',
++      '009-怒号光明',
++      '010-风暴瞭望',
++    ]);
++  });
++});
+--- a/apps/readest-app/src/app/library/components/ViewMenu.tsx
++++ b/apps/readest-app/src/app/library/components/ViewMenu.tsx
+@@ -25,6 +25,7 @@
+ 
+ const SORT_BY_ORDER: LibrarySortByType[] = [
+   LibrarySortByType.Title,
++  LibrarySortByType.Filename,
+   LibrarySortByType.Author,
+   LibrarySortByType.Format,
+   LibrarySortByType.Pages,
+--- a/apps/readest-app/src/app/library/utils/libraryUtils.ts
++++ b/apps/readest-app/src/app/library/utils/libraryUtils.ts
+@@ -465,6 +465,26 @@
+ const getTitleSortValue = (book: Book): string =>
+   formatTitle(book.title).replace(/^\s*(?:a|an|the)\s+(?=\S)/i, '');
+ 
++// Only strip a real ebook/audio extension: a title like "Catch 22.5" must keep
++// its ".5" instead of being truncated to "Catch 22".
++const BOOK_FILE_EXT_RE =
++  /\.(epub|pdf|mobi|azw3?|cbz|fb2|fbz|txt|md|markdown|html?|docx|rtf|zip|mp3|m4a|m4b|opus|flac|ogg)$/i;
++
++/**
++ * The name the book was imported under, without its extension: the "original
++ * filename" key. Falls back to the metadata title for books imported before
++ * `originalFilename` was persisted (or for remote/OPDS books, which have no
++ * local file name at all).
++ */
++export const getBookFilename = (book: Book): string => {
++  const filename = book.originalFilename?.trim();
++  if (filename) {
++    const stem = filename.replace(BOOK_FILE_EXT_RE, '').trim();
++    if (stem) return stem;
++  }
++  return formatTitle(book.title);
++};
++
+ const compareBookByKey = (
+   a: Book,
+   b: Book,
+@@ -478,6 +498,9 @@
+       const bTitle = getTitleSortValue(b);
+       return compareTitles(aTitle, bTitle, uiLanguage);
+     }
++    case LibrarySortByType.Filename:
++      // Natural order so "002-" sorts before "010-" and before "10-".
++      return compareTitles(getBookFilename(a), getBookFilename(b), uiLanguage);
+     case LibrarySortByType.Author: {
+       const aAuthors = formatAuthors(a.author, a?.primaryLanguage || 'en', true);
+       const bAuthors = formatAuthors(b.author, b?.primaryLanguage || 'en', true);
+@@ -901,6 +924,9 @@
+     case LibrarySortByType.Title:
+       return getTitleSortValue(book);
+ 
++    case LibrarySortByType.Filename:
++      return getBookFilename(book);
++
+     case LibrarySortByType.Author:
+       return formatAuthors(book.author, book?.primaryLanguage || 'en', true);
+ 
+@@ -950,6 +976,7 @@
+ 
+   if (books.length === 0) {
+     return sortBy === LibrarySortByType.Title ||
++      sortBy === LibrarySortByType.Filename ||
+       sortBy === LibrarySortByType.Series ||
+       sortBy === LibrarySortByType.Author ||
+       sortBy === LibrarySortByType.Format
+@@ -959,6 +986,7 @@
+ 
+   switch (sortBy) {
+     case LibrarySortByType.Title:
++    case LibrarySortByType.Filename:
+     case LibrarySortByType.Series:
+     case LibrarySortByType.Format:
+       return name;
+@@ -1024,7 +1052,7 @@
+ ): number => {
+   // String comparison for text-based sorts
+   if (typeof aValue === 'string' && typeof bValue === 'string') {
+-    return sortBy === LibrarySortByType.Title
++    return sortBy === LibrarySortByType.Title || sortBy === LibrarySortByType.Filename
+       ? compareTitles(aValue, bValue, uiLanguage)
+       : aValue.localeCompare(bValue, uiLanguage || navigator.language);
+   }
+--- a/apps/readest-app/src/services/bookshelves/definitions.ts
++++ b/apps/readest-app/src/services/bookshelves/definitions.ts
+@@ -52,6 +52,7 @@
+   shelf.layout === 'carousel' ? 'carousel' : viewMode === 'list' ? 'list' : 'grid';
+ export const BOOKSHELF_SORT_LABELS: Record<LibrarySortByType, string> = {
+   title: _('Title'),
++  filename: _('Filename'),
+   author: _('Author'),
+   updated: _('Date Read'),
+   created: _('Date Added'),
+--- a/apps/readest-app/src/types/settings.ts
++++ b/apps/readest-app/src/types/settings.ts
+@@ -18,6 +18,10 @@
+ export type LibraryViewModeType = 'grid' | 'list';
+ export const LibrarySortByType = {
+   Title: 'title',
++  // Sort by the basename of the imported file rather than the metadata title.
++  // Kept as a separate key (instead of rewriting `title` on import) so the
++  // original metadata title stays available for search, sync and the reader.
++  Filename: 'filename',
+   Author: 'author',
+   Updated: 'updated',
+   Created: 'created',

@@ -8,6 +8,7 @@ import {
   getGroupSortValue,
   compareSortValues,
   createBookSorter,
+  getBookFilename,
   ensureLibrarySortByType,
   ensureLibrarySecondarySortByType,
   ensureLibraryGroupByType,
@@ -2023,5 +2024,35 @@ describe('canRemoveFromDeviceOnly', () => {
 
   it('rejects a cloud-only book, which has nothing on this device', () => {
     expect(canRemoveFromDeviceOnly(createMockBook({ uploadedAt: 100 }))).toBe(false);
+  });
+});
+
+describe('filename sort', () => {
+  it('strips the extension and keeps the numeric prefix', () => {
+    expect(getBookFilename(createMockBook({ originalFilename: '001-黑暗时代·上.epub' }))).toBe(
+      '001-黑暗时代·上',
+    );
+  });
+
+  it('falls back to the title when no original filename was persisted', () => {
+    expect(getBookFilename(createMockBook({ title: 'Dark Age' }))).toBe('Dark Age');
+  });
+
+  it('sorts books by filename in natural order', () => {
+    const books = [
+      createMockBook({ title: 'B', originalFilename: '010-风暴瞭望.epub' }),
+      createMockBook({ title: 'A', originalFilename: '002-黑暗时代·下.epub' }),
+      createMockBook({ title: 'C', originalFilename: '009-怒号光明.epub' }),
+      createMockBook({ title: 'D', originalFilename: '001-黑暗时代·上.epub' }),
+    ];
+    const sorted = [...books]
+      .sort(createBookSorter(LibrarySortByType.Filename, 'en', 'none', true))
+      .map((b) => getBookFilename(b));
+    expect(sorted).toEqual([
+      '001-黑暗时代·上',
+      '002-黑暗时代·下',
+      '009-怒号光明',
+      '010-风暴瞭望',
+    ]);
   });
 });

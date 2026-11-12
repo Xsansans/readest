@@ -18,6 +18,10 @@ export type ThemeType = 'light' | 'dark' | 'auto';
 export type LibraryViewModeType = 'grid' | 'list';
 export const LibrarySortByType = {
   Title: 'title',
+  // Sort by the basename of the imported file rather than the metadata title.
+  // Kept as a separate key (instead of rewriting `title` on import) so the
+  // original metadata title stays available for search, sync and the reader.
+  Filename: 'filename',
   Author: 'author',
   Updated: 'updated',
   Created: 'created',

@@ -25,6 +25,7 @@ interface ViewMenuProps {
 
 const SORT_BY_ORDER: LibrarySortByType[] = [
   LibrarySortByType.Title,
+  LibrarySortByType.Filename,
   LibrarySortByType.Author,
   LibrarySortByType.Format,
   LibrarySortByType.Pages,
