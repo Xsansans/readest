@@ -14,14 +14,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install Rust stable
@@ -35,8 +35,9 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      # 👇 核心修改：将 v3 升级为 v4，修复 'tools' 包缺失的问题
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install dependencies
         run: pnpm install
@@ -46,11 +47,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
-      # 👇 新增步骤：初始化 Tauri Android 项目
       - name: Initialize Tauri Android Project
-        run: npx tauri android init --ci
+        run: |
+          cd apps/readest-app
+          npx tauri android init --ci
 
-      # 👇 构建命令保持不变
       - name: Build Android APK
         run: |
           cd apps/readest-app
