@@ -15,8 +15,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # 👇 这里删掉了 version: 9，它会自动读取 package.json 里的 packageManager 字段
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -35,7 +34,6 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 👇 核心修改：将 v3 升级为 v4，修复 'tools' 包缺失的问题
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
