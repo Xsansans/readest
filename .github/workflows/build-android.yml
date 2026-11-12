@@ -15,11 +15,9 @@ jobs:
         with:
           submodules: recursive
 
-      # 👇 核心修改 1：升级到 v6
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
 
-      # 👇 核心修改 2：将 Node.js 版本从 20 升级到 22
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -56,10 +54,11 @@ jobs:
           cd apps/readest-app
           npx tauri android init --ci
 
+      # 👇 核心修改：删除了 --apk，并将 --target 改为 = 连接
       - name: Build Android APK
         run: |
           cd apps/readest-app
-          pnpm tauri android build -- --apk --target aarch64
+          pnpm tauri android build --target=aarch64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
