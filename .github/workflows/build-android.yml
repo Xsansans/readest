@@ -24,10 +24,27 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
+      # 👇 新增：缓存 Gradle 依赖，加快 Android 打包
+      - name: Setup Gradle Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      # 👇 新增：缓存 Rust 编译产物，这是省下那 20 分钟的关键！
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/readest-app/src-tauri -> target"
 
       - name: Setup Java JDK
         uses: actions/setup-java@v5
@@ -54,7 +71,17 @@ jobs:
           cd apps/readest-app
           npx tauri android init --ci
 
-      # 👇 核心修改：删除了 --apk，并将 --target 改为 = 连接
+      # 👇 补全缺失的图标颜色资源（这次必定能过）
+      - name: Fix missing Android color resource
+        run: |
+          mkdir -p apps/readest-app/src-tauri/gen/android/app/src/main/res/values
+          cat << 'EOF' > apps/readest-app/src-tauri/gen/android/app/src/main/res/values/colors.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#FFFFFF</color>
+          </resources>
+          EOF
+
       - name: Build Android APK
         run: |
           cd apps/readest-app
